@@ -16,9 +16,9 @@ class MethodChannelXueHuaNaviteDragDrop extends XueHuaNaviteDragDropPlatform {
   void Function(Offset globalPosition)? _onDragUpdated;
   void Function()? _onDragExited;
   Future<void> Function(Offset globalPosition, List<DropItem> items)?
-      _onPerformDrop;
+  _onPerformDrop;
   Future<bool> Function(String itemId, String destinationPath)?
-      _onRequestAsyncFileWrite;
+  _onRequestAsyncFileWrite;
   void Function(bool success)? _onDragOutEnded;
 
   @override
@@ -27,9 +27,9 @@ class MethodChannelXueHuaNaviteDragDrop extends XueHuaNaviteDragDropPlatform {
     required void Function(Offset globalPosition) onDragUpdated,
     required void Function() onDragExited,
     required Future<void> Function(Offset globalPosition, List<DropItem> items)
-        onPerformDrop,
+    onPerformDrop,
     required Future<bool> Function(String itemId, String destinationPath)
-        onRequestAsyncFileWrite,
+    onRequestAsyncFileWrite,
     required void Function(bool success) onDragOutEnded,
   }) {
     _onDragEntered = onDragEntered;
@@ -78,8 +78,8 @@ class MethodChannelXueHuaNaviteDragDrop extends XueHuaNaviteDragDropPlatform {
   }
 
   Future<Object?> _handleNativeMethodCall(MethodCall call) async {
-    final args = call.arguments as Map<Object?, Object?>? ??
-        const <Object?, Object?>{};
+    final args =
+        call.arguments as Map<Object?, Object?>? ?? const <Object?, Object?>{};
     switch (call.method) {
       case 'onDragEntered':
         final pos = _parseOffset(args);

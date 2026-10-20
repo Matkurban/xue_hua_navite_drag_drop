@@ -1,4 +1,5 @@
 import 'dart:ui';
+
 import 'drop_item.dart';
 
 /// Supported drop operation effects shown by the OS cursor.
@@ -19,10 +20,7 @@ enum DropOperation {
 /// Base class for drag-in lifecycle events.
 class NativeDragEvent {
   /// Creates a [NativeDragEvent] with window-relative logical coordinates.
-  const NativeDragEvent({
-    required this.globalPosition,
-    this.localPosition,
-  });
+  const NativeDragEvent({required this.globalPosition, this.localPosition});
 
   /// Logical pixel position relative to the Flutter window root.
   final Offset globalPosition;

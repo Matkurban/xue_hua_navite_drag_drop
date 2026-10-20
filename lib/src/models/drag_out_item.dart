@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+
 import '../utils/file_reader.dart';
 
 /// Callback signature for writing an async/virtual file to [targetPath]

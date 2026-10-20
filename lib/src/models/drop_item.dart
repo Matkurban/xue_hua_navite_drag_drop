@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+
 import '../utils/file_reader.dart';
 
 /// Represents a file or folder dragged into the Flutter application.
@@ -13,23 +14,23 @@ class DropItem {
     this.mimeType,
     this.children = const <DropItem>[],
     this.bookmark,
-    Object? webFile,
-    Uint8List? rawBytes,
-  })  : _webFile = webFile,
-        _rawBytes = rawBytes;
+    this._webFile,
+    this._rawBytes,
+  });
 
   /// Creates a [DropItem] from a platform channel map payload.
   factory DropItem.fromMap(Map<Object?, Object?> map) {
     final rawChildren = map['children'] as List<Object?>?;
     final parsedChildren = rawChildren != null
         ? rawChildren
-            .whereType<Map<Object?, Object?>>()
-            .map(DropItem.fromMap)
-            .toList(growable: false)
+              .whereType<Map<Object?, Object?>>()
+              .map(DropItem.fromMap)
+              .toList(growable: false)
         : const <DropItem>[];
 
     final pathStr = map['path'] as String?;
-    final nameStr = (map['name'] as String?) ??
+    final nameStr =
+        (map['name'] as String?) ??
         (pathStr != null ? _basename(pathStr) : 'unknown');
 
     return DropItem(

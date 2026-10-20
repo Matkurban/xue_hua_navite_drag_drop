@@ -151,8 +151,9 @@ class DragDropManager {
     }
     if (hit != null && items.isNotEmpty) {
       final bounds = hit.getBounds();
-      final localPos =
-          bounds != null ? globalPosition - bounds.topLeft : globalPosition;
+      final localPos = bounds != null
+          ? globalPosition - bounds.topLeft
+          : globalPosition;
       await hit.onPerformDrop?.call(
         NativeDropEvent(
           globalPosition: globalPosition,
@@ -198,8 +199,9 @@ class DragDropManager {
       _hoveredRegionId = newId;
       if (hit != null) {
         final bounds = hit.getBounds();
-        final localPos =
-            bounds != null ? globalPosition - bounds.topLeft : globalPosition;
+        final localPos = bounds != null
+            ? globalPosition - bounds.topLeft
+            : globalPosition;
         hit.onDragEnter?.call(
           NativeDragEvent(
             globalPosition: globalPosition,
@@ -214,8 +216,9 @@ class DragDropManager {
 
     if (hit != null) {
       final bounds = hit.getBounds();
-      final localPos =
-          bounds != null ? globalPosition - bounds.topLeft : globalPosition;
+      final localPos = bounds != null
+          ? globalPosition - bounds.topLeft
+          : globalPosition;
       hit.onDragUpdate?.call(
         NativeDragEvent(
           globalPosition: globalPosition,

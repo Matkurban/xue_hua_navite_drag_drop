@@ -25,7 +25,7 @@ class XueHuaNaviteDragDropWeb extends XueHuaNaviteDragDropPlatform {
   void Function(Offset globalPosition)? _onDragUpdated;
   void Function()? _onDragExited;
   Future<void> Function(Offset globalPosition, List<DropItem> items)?
-      _onPerformDrop;
+  _onPerformDrop;
   void Function(bool success)? _onDragOutEnded;
 
   bool _listenersAttached = false;
@@ -37,9 +37,9 @@ class XueHuaNaviteDragDropWeb extends XueHuaNaviteDragDropPlatform {
     required void Function(Offset globalPosition) onDragUpdated,
     required void Function() onDragExited,
     required Future<void> Function(Offset globalPosition, List<DropItem> items)
-        onPerformDrop,
+    onPerformDrop,
     required Future<bool> Function(String itemId, String destinationPath)
-        onRequestAsyncFileWrite,
+    onRequestAsyncFileWrite,
     required void Function(bool success) onDragOutEnded,
   }) {
     _onDragEntered = onDragEntered;
@@ -215,8 +215,7 @@ class XueHuaNaviteDragDropWeb extends XueHuaNaviteDragDropPlatform {
         entry.getProperty<JSBoolean?>('isFile'.toJS)?.toDart ?? false;
     final isDirectory =
         entry.getProperty<JSBoolean?>('isDirectory'.toJS)?.toDart ?? false;
-    final name =
-        entry.getProperty<JSString?>('name'.toJS)?.toDart ?? 'unnamed';
+    final name = entry.getProperty<JSString?>('name'.toJS)?.toDart ?? 'unnamed';
     final fullPath =
         entry.getProperty<JSString?>('fullPath'.toJS)?.toDart ?? name;
 

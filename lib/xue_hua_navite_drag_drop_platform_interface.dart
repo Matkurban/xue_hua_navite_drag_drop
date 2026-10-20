@@ -1,4 +1,5 @@
 import 'dart:ui';
+
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 
 import 'src/models/drag_event.dart';
@@ -34,9 +35,9 @@ abstract class XueHuaNaviteDragDropPlatform extends PlatformInterface {
     required void Function(Offset globalPosition) onDragUpdated,
     required void Function() onDragExited,
     required Future<void> Function(Offset globalPosition, List<DropItem> items)
-        onPerformDrop,
+    onPerformDrop,
     required Future<bool> Function(String itemId, String destinationPath)
-        onRequestAsyncFileWrite,
+    onRequestAsyncFileWrite,
     required void Function(bool success) onDragOutEnded,
   }) {
     throw UnimplementedError(

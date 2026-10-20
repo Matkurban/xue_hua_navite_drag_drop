@@ -1,4 +1,5 @@
 import 'dart:async';
+
 import 'package:flutter/widgets.dart';
 
 import '../manager/drag_drop_manager.dart';
@@ -80,9 +81,6 @@ class _NativeDropRegionState extends State<NativeDropRegion> {
 
   @override
   Widget build(BuildContext context) {
-    return KeyedSubtree(
-      key: _regionKey,
-      child: widget.child,
-    );
+    return KeyedSubtree(key: _regionKey, child: widget.child);
   }
 }

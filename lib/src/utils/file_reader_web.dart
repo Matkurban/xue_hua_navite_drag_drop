@@ -1,5 +1,6 @@
 import 'dart:js_interop';
 import 'dart:typed_data';
+
 import 'package:web/web.dart' as web;
 
 Future<Uint8List> readPlatformFileBytes(String? path, Object? webFile) async {
@@ -26,8 +27,9 @@ Stream<Uint8List> openPlatformFileRead(
 
   int offset = actualStart;
   while (offset < actualEnd) {
-    final int nextEnd =
-        (offset + chunkSize < actualEnd) ? offset + chunkSize : actualEnd;
+    final int nextEnd = (offset + chunkSize < actualEnd)
+        ? offset + chunkSize
+        : actualEnd;
     final slice = webFile.slice(offset, nextEnd);
     final arrayBuffer = await slice.arrayBuffer().toDart;
     yield arrayBuffer.toDart.asUint8List();

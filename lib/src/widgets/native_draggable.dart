@@ -62,8 +62,9 @@ class _NativeDraggableState extends State<NativeDraggable> {
       return null;
     }
     try {
-      final boundary = _repaintKey.currentContext?.findRenderObject()
-          as RenderRepaintBoundary?;
+      final boundary =
+          _repaintKey.currentContext?.findRenderObject()
+              as RenderRepaintBoundary?;
       if (boundary == null) {
         return null;
       }
