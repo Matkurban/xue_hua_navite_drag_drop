@@ -4,10 +4,11 @@ import 'dart:typed_data';
 import 'package:web/web.dart' as web;
 
 Future<Uint8List> readPlatformFileBytes(String? path, Object? webFile) async {
-  if (webFile is! web.Blob) {
+  if (!webFile.isA<web.Blob>()) {
     return Uint8List(0);
   }
-  final arrayBuffer = await webFile.arrayBuffer().toDart;
+  final blob = webFile as web.Blob;
+  final arrayBuffer = await blob.arrayBuffer().toDart;
   return arrayBuffer.toDart.asUint8List();
 }
 
@@ -17,11 +18,12 @@ Stream<Uint8List> openPlatformFileRead(
   int? start,
   int? end,
 ]) async* {
-  if (webFile is! web.Blob) {
+  if (!webFile.isA<web.Blob>()) {
     return;
   }
+  final blob = webFile as web.Blob;
   const int chunkSize = 256 * 1024; // 256 KB chunks
-  final int totalSize = webFile.size;
+  final int totalSize = blob.size;
   final int actualStart = start ?? 0;
   final int actualEnd = (end != null && end < totalSize) ? end : totalSize;
 
@@ -30,7 +32,7 @@ Stream<Uint8List> openPlatformFileRead(
     final int nextEnd = (offset + chunkSize < actualEnd)
         ? offset + chunkSize
         : actualEnd;
-    final slice = webFile.slice(offset, nextEnd);
+    final slice = blob.slice(offset, nextEnd);
     final arrayBuffer = await slice.arrayBuffer().toDart;
     yield arrayBuffer.toDart.asUint8List();
     offset = nextEnd;

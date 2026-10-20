@@ -3,7 +3,7 @@ description: "Demonstrates how to use the xue_hua_navite_drag_drop plugin."
 publish_to: 'none'
 
 environment:
-  sdk: ^3.13.5
+  sdk: ^3.13.0
   flutter: '>=3.47.0'
 
 dependencies:
@@ -11,7 +11,7 @@ dependencies:
     sdk: flutter
   xue_hua_navite_drag_drop:
     path: ../
-  cupertino_icons: ^1.0.8
+  cupertino_icons: ^2.0.0
 
 dev_dependencies:
   integration_test:

@@ -29,19 +29,15 @@ class _MyAppState extends State<MyApp> {
 
   @override
   Widget build(BuildContext context) {
-    final firstDroppedFile =
-        _droppedItems.where((e) => !e.isDirectory && e.path != null).firstOrNull;
+    final firstDroppedFile = _droppedItems
+        .where((e) => !e.isDirectory && e.path != null)
+        .firstOrNull;
 
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorSchemeSeed: Colors.indigo,
-        useMaterial3: true,
-      ),
+      theme: ThemeData(colorSchemeSeed: Colors.indigo, useMaterial3: true),
       home: Scaffold(
-        appBar: AppBar(
-          title: const Text('XueHua 6端原生拖拽演示'),
-        ),
+        appBar: AppBar(title: const Text('XueHua 6端原生拖拽演示')),
         body: Padding(
           padding: const EdgeInsets.all(16),
           child: Row(
@@ -130,7 +126,10 @@ class _MyAppState extends State<MyApp> {
                                   child: Text(
                                     '请从电脑桌面/资源管理器拖拽任意文件、视频或文件夹到此区域',
                                     textAlign: TextAlign.center,
-                                    style: TextStyle(color: Colors.black54),
+                                    style: TextStyle(
+                                      color: Colors.black54,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
                                   ),
                                 )
                               : ListView.separated(
@@ -203,8 +202,9 @@ class _MyAppState extends State<MyApp> {
                         },
                         onDragCompleted: (success) {
                           setState(() {
-                            _dragOutStatus =
-                                success ? '异步文件拖出保存成功！' : '拖出已取消或未落盘';
+                            _dragOutStatus = success
+                                ? '异步文件拖出保存成功！'
+                                : '拖出已取消或未落盘';
                           });
                         },
                         itemsBuilder: () async {
@@ -239,7 +239,7 @@ class _MyAppState extends State<MyApp> {
                           ),
                         ),
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 8),
                       // 模式 A：已知本地文件路径直接拖出
                       NativeDraggable(
                         enabled: firstDroppedFile != null,
@@ -251,8 +251,7 @@ class _MyAppState extends State<MyApp> {
                         },
                         onDragCompleted: (success) {
                           setState(() {
-                            _dragOutStatus =
-                                success ? '本地文件拖出成功！' : '本地文件拖出取消';
+                            _dragOutStatus = success ? '本地文件拖出成功！' : '本地文件拖出取消';
                           });
                         },
                         itemsBuilder: () async {
