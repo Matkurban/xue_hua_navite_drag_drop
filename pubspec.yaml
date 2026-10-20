@@ -1,10 +1,11 @@
 name: xue_hua_navite_drag_drop
 description: "A cross-platform Flutter plugin for native drag-in of files/folders and drag-out of local or async files across macOS, Windows, Linux, iOS, Android, and Web."
-version: 0.0.1
-homepage: https://github.com/kurban/xue_hua_navite_drag_drop
+version: 1.0.0
+homepage: https://github.com/Matkurban
+repository: https://github.com/Matkurban/xue_hua_navite_drag_drop
 
 environment:
-  sdk: ^3.13.5
+  sdk: ^3.13.0
   flutter: '>=3.47.0'
 
 dependencies:
