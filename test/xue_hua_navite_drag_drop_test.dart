@@ -1,6 +1,4 @@
-import 'dart:typed_data';
-import 'dart:ui';
-
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 import 'package:xue_hua_navite_drag_drop/xue_hua_navite_drag_drop.dart';
@@ -11,9 +9,6 @@ class MockXueHuaNaviteDragDropPlatform
     implements XueHuaNaviteDragDropPlatform {
   DropOperation? lastOperation;
   List<DragOutItem>? lastDragOutItems;
-
-  @override
-  Future<String?> getPlatformVersion() => Future.value('42');
 
   @override
   void registerCallbackHandler({
@@ -53,12 +48,18 @@ void main() {
     expect(initialPlatform, isInstanceOf<MethodChannelXueHuaNaviteDragDrop>());
   });
 
-  test('getPlatformVersion', () async {
+  test('startDragOut delegates to platform implementation', () async {
     final plugin = XueHuaNaviteDragDrop();
     final fakePlatform = MockXueHuaNaviteDragDropPlatform();
     XueHuaNaviteDragDropPlatform.instance = fakePlatform;
 
-    expect(await plugin.getPlatformVersion(), '42');
+    final ok = await plugin.startDragOut(
+      items: <DragOutItem>[
+        DragOutItem.file(filePath: '/tmp/video.mp4'),
+      ],
+    );
+    expect(ok, isTrue);
+    expect(fakePlatform.lastDragOutItems?.length, 1);
   });
 
   test('DropItem parses file and folder hierarchy from map', () async {

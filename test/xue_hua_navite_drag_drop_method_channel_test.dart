@@ -13,8 +13,6 @@ void main() {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, (MethodCall methodCall) async {
       switch (methodCall.method) {
-        case 'getPlatformVersion':
-          return '42';
         case 'initDragDrop':
         case 'setDropEffect':
           return null;
@@ -29,10 +27,6 @@ void main() {
   tearDown(() {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, null);
-  });
-
-  test('getPlatformVersion', () async {
-    expect(await platform.getPlatformVersion(), '42');
   });
 
   test('startDragOut invokes method channel and returns true', () async {

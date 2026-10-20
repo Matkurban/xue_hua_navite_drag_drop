@@ -42,9 +42,6 @@ class XueHuaNaviteDragDropPlugin :
 
     override fun onMethodCall(call: MethodCall, result: Result) {
         when (call.method) {
-            "getPlatformVersion" -> {
-                result.success("Android ${Build.VERSION.RELEASE}")
-            }
             "initDragDrop" -> {
                 attachDragListenerIfNeeded()
                 result.success(null)

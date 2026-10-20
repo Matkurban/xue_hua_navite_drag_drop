@@ -28,11 +28,6 @@ abstract class XueHuaNaviteDragDropPlatform extends PlatformInterface {
     _instance = instance;
   }
 
-  /// Returns the current operating system version string.
-  Future<String?> getPlatformVersion() {
-    throw UnimplementedError('platformVersion() has not been implemented.');
-  }
-
   /// Registers native-to-Dart drag-and-drop lifecycle callbacks.
   void registerCallbackHandler({
     required void Function(Offset globalPosition) onDragEntered,

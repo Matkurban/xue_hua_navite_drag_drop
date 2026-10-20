@@ -1,10 +1,8 @@
 #include "xue_hua_navite_drag_drop_plugin.h"
 
-#include <VersionHelpers.h>
 #include <flutter/encodable_value.h>
 
 #include <filesystem>
-#include <sstream>
 
 namespace xue_hua_navite_drag_drop {
 
@@ -73,7 +71,6 @@ flutter::EncodableMap SerializeFileOrFolder(const std::filesystem::path& p, int 
   };
 }
 
-// Simple OLE IDropSource implementation for dragging files out to Explorer.
 class SimpleDropSource : public IDropSource {
  public:
   SimpleDropSource() : ref_count_(1) {}
@@ -115,7 +112,6 @@ class SimpleDropSource : public IDropSource {
 
 }  // namespace
 
-// OLE IDropTarget implementation for receiving external files & folders.
 class WindowsDropTarget : public IDropTarget {
  public:
   explicit WindowsDropTarget(XueHuaNaviteDragDropPlugin* plugin)
@@ -146,26 +142,32 @@ class WindowsDropTarget : public IDropTarget {
   STDMETHODIMP DragEnter(IDataObject* pDataObj, DWORD grfKeyState,
                          POINTL pt, DWORD* pdwEffect) override {
     auto coords = ConvertPoint(pt);
-    plugin_->channel()->InvokeMethod(
-        "onDragEntered",
-        std::make_unique<flutter::EncodableValue>(coords));
+    if (plugin_->channel()) {
+      plugin_->channel()->InvokeMethod(
+          "onDragEntered",
+          std::make_unique<flutter::EncodableValue>(coords));
+    }
     *pdwEffect = plugin_->current_drop_effect();
     return S_OK;
   }
 
   STDMETHODIMP DragOver(DWORD grfKeyState, POINTL pt, DWORD* pdwEffect) override {
     auto coords = ConvertPoint(pt);
-    plugin_->channel()->InvokeMethod(
-        "onDragUpdated",
-        std::make_unique<flutter::EncodableValue>(coords));
+    if (plugin_->channel()) {
+      plugin_->channel()->InvokeMethod(
+          "onDragUpdated",
+          std::make_unique<flutter::EncodableValue>(coords));
+    }
     *pdwEffect = plugin_->current_drop_effect();
     return S_OK;
   }
 
   STDMETHODIMP DragLeave() override {
-    plugin_->channel()->InvokeMethod(
-        "onDragExited",
-        std::make_unique<flutter::EncodableValue>());
+    if (plugin_->channel()) {
+      plugin_->channel()->InvokeMethod(
+          "onDragExited",
+          std::make_unique<flutter::EncodableValue>());
+    }
     return S_OK;
   }
 
@@ -202,9 +204,11 @@ class WindowsDropTarget : public IDropTarget {
     auto payload = ConvertPoint(pt);
     payload[flutter::EncodableValue("items")] =
         flutter::EncodableValue(dropped_items);
-    plugin_->channel()->InvokeMethod(
-        "onPerformDrop",
-        std::make_unique<flutter::EncodableValue>(payload));
+    if (plugin_->channel()) {
+      plugin_->channel()->InvokeMethod(
+          "onPerformDrop",
+          std::make_unique<flutter::EncodableValue>(payload));
+    }
 
     *pdwEffect = plugin_->current_drop_effect();
     return S_OK;
@@ -253,6 +257,10 @@ void XueHuaNaviteDragDropPlugin::RegisterWithRegistrar(
   registrar->AddPlugin(std::move(plugin));
 }
 
+XueHuaNaviteDragDropPlugin::XueHuaNaviteDragDropPlugin() {
+  OleInitialize(nullptr);
+}
+
 XueHuaNaviteDragDropPlugin::XueHuaNaviteDragDropPlugin(
     flutter::PluginRegistrarWindows *registrar,
     std::unique_ptr<flutter::MethodChannel<flutter::EncodableValue>> channel)
@@ -296,11 +304,13 @@ void XueHuaNaviteDragDropPlugin::StartDragOutWithPaths(
     }
   }
   if (pidls.empty()) {
-    channel_->InvokeMethod(
-        "onDragOutEnded",
-        std::make_unique<flutter::EncodableValue>(flutter::EncodableMap{
-            {flutter::EncodableValue("success"), flutter::EncodableValue(false)},
-        }));
+    if (channel_) {
+      channel_->InvokeMethod(
+          "onDragOutEnded",
+          std::make_unique<flutter::EncodableValue>(flutter::EncodableMap{
+              {flutter::EncodableValue("success"), flutter::EncodableValue(false)},
+          }));
+    }
     return;
   }
 
@@ -325,32 +335,20 @@ void XueHuaNaviteDragDropPlugin::StartDragOutWithPaths(
     data_obj->Release();
   }
 
-  channel_->InvokeMethod(
-      "onDragOutEnded",
-      std::make_unique<flutter::EncodableValue>(flutter::EncodableMap{
-          {flutter::EncodableValue("success"),
-           flutter::EncodableValue(drag_succeeded)},
-      }));
+  if (channel_) {
+    channel_->InvokeMethod(
+        "onDragOutEnded",
+        std::make_unique<flutter::EncodableValue>(flutter::EncodableMap{
+            {flutter::EncodableValue("success"),
+             flutter::EncodableValue(drag_succeeded)},
+        }));
+  }
 }
 
 void XueHuaNaviteDragDropPlugin::HandleMethodCall(
     const flutter::MethodCall<flutter::EncodableValue> &method_call,
     std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>> result) {
   const auto& method = method_call.method_name();
-
-  if (method == "getPlatformVersion") {
-    std::ostringstream version_stream;
-    version_stream << "Windows ";
-    if (IsWindows10OrGreater()) {
-      version_stream << "10+";
-    } else if (IsWindows8OrGreater()) {
-      version_stream << "8";
-    } else if (IsWindows7OrGreater()) {
-      version_stream << "7";
-    }
-    result->Success(flutter::EncodableValue(version_stream.str()));
-    return;
-  }
 
   if (method == "initDragDrop") {
     EnsureDropTargetRegistered();
@@ -425,7 +423,7 @@ void XueHuaNaviteDragDropPlugin::HandleMethodCall(
 
       if (!is_async && !file_path_str.empty()) {
         resolved_paths->push_back(Utf8ToWide(file_path_str));
-      } else {
+      } else if (channel_) {
         std::string item_id;
         std::string file_name = "exported_file";
         auto id_it = item_map->find(flutter::EncodableValue("id"));

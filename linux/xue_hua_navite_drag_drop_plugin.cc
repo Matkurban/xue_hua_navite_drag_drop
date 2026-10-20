@@ -3,7 +3,6 @@
 #include <flutter_linux/flutter_linux.h>
 #include <glib/gstdio.h>
 #include <gtk/gtk.h>
-#include <sys/utsname.h>
 
 #include <cstring>
 #include <string>
@@ -176,17 +175,14 @@ static void begin_gtk_drag_with_uris(XueHuaNaviteDragDropPlugin* self) {
   gtk_target_list_unref(target_list);
 }
 
-// Called when a method call is received from Flutter.
-static void xue_hua_navite_drag_drop_plugin_handle_method_call(
+void xue_hua_navite_drag_drop_plugin_handle_method_call(
     XueHuaNaviteDragDropPlugin* self,
     FlMethodCall* method_call) {
   g_autoptr(FlMethodResponse) response = nullptr;
   const gchar* method = fl_method_call_get_name(method_call);
   FlValue* args = fl_method_call_get_args(method_call);
 
-  if (strcmp(method, "getPlatformVersion") == 0) {
-    response = get_platform_version();
-  } else if (strcmp(method, "initDragDrop") == 0) {
+  if (strcmp(method, "initDragDrop") == 0) {
     ensure_drop_target_registered(self);
     response = FL_METHOD_RESPONSE(fl_method_success_response_new(nullptr));
   } else if (strcmp(method, "setDropEffect") == 0) {
@@ -242,14 +238,6 @@ static void xue_hua_navite_drag_drop_plugin_handle_method_call(
   }
 
   fl_method_call_respond(method_call, response, nullptr);
-}
-
-FlMethodResponse* get_platform_version() {
-  struct utsname uname_data = {};
-  uname(&uname_data);
-  g_autofree gchar *version = g_strdup_printf("Linux %s", uname_data.version);
-  g_autoptr(FlValue) result = fl_value_new_string(version);
-  return FL_METHOD_RESPONSE(fl_method_success_response_new(result));
 }
 
 static void xue_hua_navite_drag_drop_plugin_dispose(GObject* object) {

@@ -2,7 +2,6 @@ import 'dart:ui';
 
 import 'src/manager/drag_drop_manager.dart';
 import 'src/models/drag_out_item.dart';
-import 'xue_hua_navite_drag_drop_platform_interface.dart';
 
 export 'src/manager/drag_drop_manager.dart';
 export 'src/models/drag_event.dart';
@@ -14,11 +13,6 @@ export 'xue_hua_navite_drag_drop_platform_interface.dart';
 
 /// Main facade for the `xue_hua_navite_drag_drop` plugin.
 class XueHuaNaviteDragDrop {
-  /// Returns the current operating system version string.
-  Future<String?> getPlatformVersion() {
-    return XueHuaNaviteDragDropPlatform.instance.getPlatformVersion();
-  }
-
   /// Explicitly initializes the native drag-and-drop system if needed before
   /// mounting a `NativeDropRegion`.
   Future<void> initDragDrop() {

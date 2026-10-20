@@ -1,6 +1,7 @@
 import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:xue_hua_navite_drag_drop/xue_hua_navite_drag_drop.dart';
 
 void main() {
@@ -15,32 +16,10 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  final _plugin = XueHuaNaviteDragDrop();
-  String _platformVersion = 'Unknown';
   bool _isHoveringDropZone = false;
   Offset? _hoverPosition;
   final List<DropItem> _droppedItems = <DropItem>[];
   String _dragOutStatus = '等待拖出操作...';
-
-  @override
-  void initState() {
-    super.initState();
-    _initPlatformState();
-  }
-
-  Future<void> _initPlatformState() async {
-    String platformVersion;
-    try {
-      platformVersion =
-          await _plugin.getPlatformVersion() ?? 'Unknown platform version';
-    } on PlatformException {
-      platformVersion = 'Failed to get platform version.';
-    }
-    if (!mounted) return;
-    setState(() {
-      _platformVersion = platformVersion;
-    });
-  }
 
   String _formatBytes(int bytes) {
     if (bytes < 1024) return '$bytes B';
@@ -61,7 +40,7 @@ class _MyAppState extends State<MyApp> {
       ),
       home: Scaffold(
         appBar: AppBar(
-          title: Text('XueHua 6端原生拖拽演示 ($_platformVersion)'),
+          title: const Text('XueHua 6端原生拖拽演示'),
         ),
         body: Padding(
           padding: const EdgeInsets.all(16),
@@ -242,12 +221,12 @@ class _MyAppState extends State<MyApp> {
                             ),
                           ];
                         },
-                        child: Card(
+                        child: const Card(
                           elevation: 2,
                           child: Padding(
-                            padding: const EdgeInsets.all(16),
+                            padding: EdgeInsets.all(16),
                             child: Row(
-                              children: const <Widget>[
+                              children: <Widget>[
                                 Icon(Icons.bolt, color: Colors.deepOrange),
                                 SizedBox(width: 12),
                                 Expanded(

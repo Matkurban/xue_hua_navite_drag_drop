@@ -1,9 +1,6 @@
-import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/gestures.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 
 import '../manager/drag_drop_manager.dart';
@@ -130,7 +127,7 @@ class _NativeDraggableState extends State<NativeDraggable> {
 
   @override
   Widget build(BuildContext context) {
-    Widget content = RepaintBoundary(
+    final Widget content = RepaintBoundary(
       key: _repaintKey,
       child: widget.child,
     );

@@ -2,10 +2,19 @@ import Cocoa
 import FlutterMacOS
 
 public class XueHuaNaviteDragDropPlugin: NSObject, FlutterPlugin {
-  private let registrar: FlutterPluginRegistrar
-  private let channel: FlutterMethodChannel
+  private let registrar: FlutterPluginRegistrar?
+  private let channel: FlutterMethodChannel?
   private var dropTargetView: MacOSDropTargetView?
-  private lazy var dragOutSession = MacOSDragOutSession(channel: channel)
+  private lazy var dragOutSession: MacOSDragOutSession? = {
+    guard let channel = channel else { return nil }
+    return MacOSDragOutSession(channel: channel)
+  }()
+
+  public override init() {
+    self.registrar = nil
+    self.channel = nil
+    super.init()
+  }
 
   init(registrar: FlutterPluginRegistrar, channel: FlutterMethodChannel) {
     self.registrar = registrar
@@ -23,14 +32,16 @@ public class XueHuaNaviteDragDropPlugin: NSObject, FlutterPlugin {
   }
 
   private func resolveFlutterView() -> NSView? {
-    if let view = registrar.view {
+    if let view = registrar?.view {
       return view
     }
-    return NSApp.mainWindow?.contentView ?? NSApp.windows.first?.contentView
+    return NSApp?.mainWindow?.contentView ?? NSApp?.windows.first?.contentView
   }
 
   private func attachDropTargetIfNeeded() {
-    guard dropTargetView == nil, let hostView = resolveFlutterView() else {
+    guard dropTargetView == nil,
+          let channel = channel,
+          let hostView = resolveFlutterView() else {
       return
     }
     let overlay = MacOSDropTargetView(frame: hostView.bounds, channel: channel)
@@ -40,9 +51,6 @@ public class XueHuaNaviteDragDropPlugin: NSObject, FlutterPlugin {
 
   public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
     switch call.method {
-    case "getPlatformVersion":
-      result("macOS " + ProcessInfo.processInfo.operatingSystemVersionString)
-
     case "initDragDrop":
       DispatchQueue.main.async { [weak self] in
         self?.attachDropTargetIfNeeded()
@@ -68,6 +76,7 @@ public class XueHuaNaviteDragDropPlugin: NSObject, FlutterPlugin {
     case "startDragOut":
       attachDropTargetIfNeeded()
       guard let hostView = resolveFlutterView(),
+            let session = dragOutSession,
             let args = call.arguments as? [String: Any],
             let items = args["items"] as? [[String: Any]] else {
         result(false)
@@ -75,7 +84,7 @@ public class XueHuaNaviteDragDropPlugin: NSObject, FlutterPlugin {
       }
       let x = (args["x"] as? Double) ?? 0.0
       let y = (args["y"] as? Double) ?? 0.0
-      let started = dragOutSession.startDragSession(
+      let started = session.startDragSession(
         in: hostView,
         items: items,
         flutterPosition: NSPoint(x: x, y: y)

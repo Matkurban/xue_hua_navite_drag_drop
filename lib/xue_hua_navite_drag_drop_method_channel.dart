@@ -22,14 +22,6 @@ class MethodChannelXueHuaNaviteDragDrop extends XueHuaNaviteDragDropPlatform {
   void Function(bool success)? _onDragOutEnded;
 
   @override
-  Future<String?> getPlatformVersion() async {
-    final version = await methodChannel.invokeMethod<String>(
-      'getPlatformVersion',
-    );
-    return version;
-  }
-
-  @override
   void registerCallbackHandler({
     required void Function(Offset globalPosition) onDragEntered,
     required void Function(Offset globalPosition) onDragUpdated,

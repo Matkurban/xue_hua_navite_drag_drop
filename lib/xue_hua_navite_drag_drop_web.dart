@@ -32,11 +32,6 @@ class XueHuaNaviteDragDropWeb extends XueHuaNaviteDragDropPlatform {
   DropOperation _currentOperation = DropOperation.copy;
 
   @override
-  Future<String?> getPlatformVersion() async {
-    return web.window.navigator.userAgent;
-  }
-
-  @override
   void registerCallbackHandler({
     required void Function(Offset globalPosition) onDragEntered,
     required void Function(Offset globalPosition) onDragUpdated,
@@ -175,11 +170,10 @@ class XueHuaNaviteDragDropWeb extends XueHuaNaviteDragDropPlatform {
 
     final entries = <JSObject>[];
     for (int i = 0; i < itemsList.length; i++) {
-      final item = itemsList.item(i);
+      final item = itemsList.getProperty<web.DataTransferItem?>(i.toJS);
       if (item != null && item.kind == 'file') {
-        final jsItem = item as JSObject;
-        if (jsItem.has('webkitGetAsEntry')) {
-          final entry = jsItem.callMethod<JSObject?>('webkitGetAsEntry'.toJS);
+        if (item.has('webkitGetAsEntry')) {
+          final entry = item.callMethod<JSObject?>('webkitGetAsEntry'.toJS);
           if (entry != null) {
             entries.add(entry);
           }
@@ -218,13 +212,13 @@ class XueHuaNaviteDragDropWeb extends XueHuaNaviteDragDropPlatform {
 
   Future<DropItem?> _readWebkitEntry(JSObject entry) async {
     final isFile =
-        (entry.getProperty<JSBoolean?>('isFile'.toJS))?.toDart ?? false;
+        entry.getProperty<JSBoolean?>('isFile'.toJS)?.toDart ?? false;
     final isDirectory =
-        (entry.getProperty<JSBoolean?>('isDirectory'.toJS))?.toDart ?? false;
+        entry.getProperty<JSBoolean?>('isDirectory'.toJS)?.toDart ?? false;
     final name =
-        (entry.getProperty<JSString?>('name'.toJS))?.toDart ?? 'unnamed';
+        entry.getProperty<JSString?>('name'.toJS)?.toDart ?? 'unnamed';
     final fullPath =
-        (entry.getProperty<JSString?>('fullPath'.toJS))?.toDart ?? name;
+        entry.getProperty<JSString?>('fullPath'.toJS)?.toDart ?? name;
 
     if (isFile) {
       final completer = Completer<DropItem?>();

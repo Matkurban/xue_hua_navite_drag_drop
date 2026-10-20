@@ -3,11 +3,16 @@ import UIKit
 import UniformTypeIdentifiers
 
 public class XueHuaNaviteDragDropPlugin: NSObject, FlutterPlugin, UIDropInteractionDelegate, UIDragInteractionDelegate {
-  private let channel: FlutterMethodChannel
+  private let channel: FlutterMethodChannel?
   private weak var hostView: UIView?
   private var interactionsAttached = false
   private var currentProposalOperation: UIDropOperation = .copy
   private var pendingDragOutItems: [[String: Any]] = []
+
+  public override init() {
+    self.channel = nil
+    super.init()
+  }
 
   init(channel: FlutterMethodChannel) {
     self.channel = channel
@@ -53,9 +58,6 @@ public class XueHuaNaviteDragDropPlugin: NSObject, FlutterPlugin, UIDropInteract
 
   public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
     switch call.method {
-    case "getPlatformVersion":
-      result("iOS " + UIDevice.current.systemVersion)
-
     case "initDragDrop":
       DispatchQueue.main.async { [weak self] in
         self?.attachInteractionsIfNeeded()
@@ -111,7 +113,7 @@ public class XueHuaNaviteDragDropPlugin: NSObject, FlutterPlugin, UIDropInteract
   ) {
     guard let view = interaction.view else { return }
     let pt = session.location(in: view)
-    channel.invokeMethod("onDragEntered", arguments: ["x": pt.x, "y": pt.y])
+    channel?.invokeMethod("onDragEntered", arguments: ["x": pt.x, "y": pt.y])
   }
 
   public func dropInteraction(
@@ -120,7 +122,7 @@ public class XueHuaNaviteDragDropPlugin: NSObject, FlutterPlugin, UIDropInteract
   ) -> UIDropProposal {
     if let view = interaction.view {
       let pt = session.location(in: view)
-      channel.invokeMethod("onDragUpdated", arguments: ["x": pt.x, "y": pt.y])
+      channel?.invokeMethod("onDragUpdated", arguments: ["x": pt.x, "y": pt.y])
     }
     return UIDropProposal(operation: currentProposalOperation)
   }
@@ -129,7 +131,7 @@ public class XueHuaNaviteDragDropPlugin: NSObject, FlutterPlugin, UIDropInteract
     _ interaction: UIDropInteraction,
     sessionDidExit session: UIDropSession
   ) {
-    channel.invokeMethod("onDragExited", arguments: nil)
+    channel?.invokeMethod("onDragExited", arguments: nil)
   }
 
   public func dropInteraction(
@@ -168,7 +170,7 @@ public class XueHuaNaviteDragDropPlugin: NSObject, FlutterPlugin, UIDropInteract
     }
 
     group.notify(queue: .main) { [weak self] in
-      self?.channel.invokeMethod("onPerformDrop", arguments: [
+      self?.channel?.invokeMethod("onPerformDrop", arguments: [
         "x": pt.x,
         "y": pt.y,
         "items": serializedItems
@@ -276,6 +278,6 @@ public class XueHuaNaviteDragDropPlugin: NSObject, FlutterPlugin, UIDropInteract
     didEndWith operation: UIDropOperation
   ) {
     let success = operation != .cancel && operation != .forbidden
-    channel.invokeMethod("onDragOutEnded", arguments: ["success": success])
+    channel?.invokeMethod("onDragOutEnded", arguments: ["success": success])
   }
 }

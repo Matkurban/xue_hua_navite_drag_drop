@@ -22,21 +22,22 @@ using flutter::MethodResultFunctions;
 
 }  // namespace
 
-TEST(XueHuaNaviteDragDropPlugin, GetPlatformVersion) {
+TEST(XueHuaNaviteDragDropPlugin, SetDropEffectUpdatesState) {
   XueHuaNaviteDragDropPlugin plugin;
-  // Save the reply value from the success callback.
-  std::string result_string;
+  bool succeeded = false;
+  EncodableMap args = {
+      {EncodableValue("operation"), EncodableValue("none")},
+  };
   plugin.HandleMethodCall(
-      MethodCall("getPlatformVersion", std::make_unique<EncodableValue>()),
+      MethodCall("setDropEffect", std::make_unique<EncodableValue>(args)),
       std::make_unique<MethodResultFunctions<>>(
-          [&result_string](const EncodableValue* result) {
-            result_string = std::get<std::string>(*result);
+          [&succeeded](const EncodableValue*) {
+            succeeded = true;
           },
           nullptr, nullptr));
 
-  // Since the exact string varies by host, just ensure that it's a string
-  // with the expected format.
-  EXPECT_TRUE(result_string.rfind("Windows ", 0) == 0);
+  EXPECT_TRUE(succeeded);
+  EXPECT_EQ(plugin.current_drop_effect(), static_cast<DWORD>(DROPEFFECT_NONE));
 }
 
 }  // namespace test
