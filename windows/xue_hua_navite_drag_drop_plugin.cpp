@@ -1,6 +1,7 @@
 #include "xue_hua_navite_drag_drop_plugin.h"
 
 #include <flutter/encodable_value.h>
+#include <flutter/method_result_functions.h>
 
 #include <filesystem>
 
@@ -296,9 +297,9 @@ void XueHuaNaviteDragDropPlugin::EnsureDropTargetRegistered() {
 
 void XueHuaNaviteDragDropPlugin::StartDragOutWithPaths(
     const std::vector<std::wstring>& file_paths) {
-  std::vector<ITEMIDLIST*> pidls;
+  std::vector<PIDLIST_ABSOLUTE> pidls;
   for (const auto& path : file_paths) {
-    ITEMIDLIST* pidl = ILCreateFromPathW(path.c_str());
+    PIDLIST_ABSOLUTE pidl = ILCreateFromPathW(path.c_str());
     if (pidl) {
       pidls.push_back(pidl);
     }
@@ -315,9 +316,10 @@ void XueHuaNaviteDragDropPlugin::StartDragOutWithPaths(
   }
 
   IDataObject* data_obj = nullptr;
+  // PCUIDLIST_RELATIVE_ARRAY / UNALIGNED PIDL: C-style cast keeps MSVC quiet under /WX.
+  auto* pidl_array = (LPCITEMIDLIST*)pidls.data();
   HRESULT hr = SHCreateDataObject(
-      nullptr, static_cast<UINT>(pidls.size()),
-      const_cast<LPCITEMIDLIST*>(pidls.data()), nullptr,
+      nullptr, static_cast<UINT>(pidls.size()), pidl_array, nullptr,
       IID_PPV_ARGS(&data_obj));
 
   for (auto* pidl : pidls) {
