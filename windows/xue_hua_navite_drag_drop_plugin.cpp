@@ -295,16 +295,160 @@ void XueHuaNaviteDragDropPlugin::EnsureDropTargetRegistered() {
   registered_hwnd_ = hwnd;
 }
 
-void XueHuaNaviteDragDropPlugin::StartDragOutWithPaths(
-    const std::vector<std::wstring>& file_paths) {
-  std::vector<PIDLIST_ABSOLUTE> pidls;
+// Build a CF_HDROP HGLOBAL for existing filesystem paths. Explorer/Desktop
+// requires CF_HDROP for file drops; SHCreateDataObject alone only guarantees
+// CFSTR_SHELLIDLIST and needs parent+relative child PIDLs (not absolute ones).
+HGLOBAL CreateHDropGlobal(const std::vector<std::wstring>& file_paths) {
+  size_t bytes = sizeof(DROPFILES);
   for (const auto& path : file_paths) {
-    PIDLIST_ABSOLUTE pidl = ILCreateFromPathW(path.c_str());
-    if (pidl) {
-      pidls.push_back(pidl);
+    bytes += (path.size() + 1) * sizeof(wchar_t);
+  }
+  bytes += sizeof(wchar_t);  // final double-null terminator
+
+  HGLOBAL hg = GlobalAlloc(GHND, bytes);
+  if (!hg) {
+    return nullptr;
+  }
+  auto* drop_files = static_cast<DROPFILES*>(GlobalLock(hg));
+  if (!drop_files) {
+    GlobalFree(hg);
+    return nullptr;
+  }
+  drop_files->pFiles = sizeof(DROPFILES);
+  drop_files->pt = {0, 0};
+  drop_files->fNC = FALSE;
+  drop_files->fWide = TRUE;
+
+  wchar_t* dest = reinterpret_cast<wchar_t*>(
+      reinterpret_cast<BYTE*>(drop_files) + sizeof(DROPFILES));
+  for (const auto& path : file_paths) {
+    const size_t len = path.size() + 1;
+    wmemcpy(dest, path.c_str(), len);
+    dest += len;
+  }
+  *dest = L'\0';
+  GlobalUnlock(hg);
+  return hg;
+}
+
+// Minimal IDataObject that exposes CF_HDROP so Desktop/Explorer accept the drag.
+class HDropDataObject : public IDataObject {
+ public:
+  explicit HDropDataObject(HGLOBAL hdrop) : ref_count_(1), hdrop_(hdrop) {}
+  virtual ~HDropDataObject() {
+    if (hdrop_) {
+      GlobalFree(hdrop_);
+      hdrop_ = nullptr;
     }
   }
-  if (pidls.empty()) {
+
+  STDMETHODIMP QueryInterface(REFIID riid, void** ppv) override {
+    if (riid == IID_IUnknown || riid == IID_IDataObject) {
+      *ppv = static_cast<IDataObject*>(this);
+      AddRef();
+      return S_OK;
+    }
+    *ppv = nullptr;
+    return E_NOINTERFACE;
+  }
+
+  STDMETHODIMP_(ULONG) AddRef() override {
+    return InterlockedIncrement(&ref_count_);
+  }
+
+  STDMETHODIMP_(ULONG) Release() override {
+    ULONG count = InterlockedDecrement(&ref_count_);
+    if (count == 0) delete this;
+    return count;
+  }
+
+  STDMETHODIMP GetData(FORMATETC* pformatetc, STGMEDIUM* pmedium) override {
+    if (!pformatetc || !pmedium || !hdrop_) {
+      return E_INVALIDARG;
+    }
+    if (pformatetc->cfFormat != CF_HDROP ||
+        !(pformatetc->tymed & TYMED_HGLOBAL) ||
+        pformatetc->dwAspect != DVASPECT_CONTENT) {
+      return DV_E_FORMATETC;
+    }
+    HGLOBAL copy = OleDuplicateData(hdrop_, CF_HDROP, GMEM_MOVEABLE);
+    if (!copy) {
+      return E_OUTOFMEMORY;
+    }
+    pmedium->tymed = TYMED_HGLOBAL;
+    pmedium->hGlobal = copy;
+    pmedium->pUnkForRelease = nullptr;
+    return S_OK;
+  }
+
+  STDMETHODIMP GetDataHere(FORMATETC*, STGMEDIUM*) override {
+    return E_NOTIMPL;
+  }
+
+  STDMETHODIMP QueryGetData(FORMATETC* pformatetc) override {
+    if (!pformatetc) {
+      return E_INVALIDARG;
+    }
+    if (pformatetc->cfFormat == CF_HDROP &&
+        (pformatetc->tymed & TYMED_HGLOBAL) &&
+        pformatetc->dwAspect == DVASPECT_CONTENT) {
+      return S_OK;
+    }
+    return DV_E_FORMATETC;
+  }
+
+  STDMETHODIMP GetCanonicalFormatEtc(FORMATETC*, FORMATETC* pformatetcOut) override {
+    if (!pformatetcOut) {
+      return E_INVALIDARG;
+    }
+    pformatetcOut->ptd = nullptr;
+    return DATA_S_SAMEFORMATETC;
+  }
+
+  STDMETHODIMP SetData(FORMATETC*, STGMEDIUM*, BOOL) override {
+    return E_NOTIMPL;
+  }
+
+  STDMETHODIMP EnumFormatEtc(DWORD dwDirection, IEnumFORMATETC** ppenumFormatEtc) override {
+    if (!ppenumFormatEtc) {
+      return E_INVALIDARG;
+    }
+    if (dwDirection != DATADIR_GET) {
+      return E_NOTIMPL;
+    }
+    FORMATETC fmt = {CF_HDROP, nullptr, DVASPECT_CONTENT, -1, TYMED_HGLOBAL};
+    return SHCreateStdEnumFmtEtc(1, &fmt, ppenumFormatEtc);
+  }
+
+  STDMETHODIMP DAdvise(FORMATETC*, DWORD, IAdviseSink*, DWORD*) override {
+    return OLE_E_ADVISENOTSUPPORTED;
+  }
+
+  STDMETHODIMP DUnadvise(DWORD) override {
+    return OLE_E_ADVISENOTSUPPORTED;
+  }
+
+  STDMETHODIMP EnumDAdvise(IEnumSTATDATA**) override {
+    return OLE_E_ADVISENOTSUPPORTED;
+  }
+
+ private:
+  LONG ref_count_;
+  HGLOBAL hdrop_;
+};
+
+void XueHuaNaviteDragDropPlugin::StartDragOutWithPaths(
+    const std::vector<std::wstring>& file_paths) {
+  // Only existing filesystem paths can be offered via CF_HDROP.
+  std::vector<std::wstring> existing_paths;
+  existing_paths.reserve(file_paths.size());
+  for (const auto& path : file_paths) {
+    std::error_code ec;
+    if (!path.empty() && std::filesystem::exists(path, ec) && !ec) {
+      existing_paths.push_back(path);
+    }
+  }
+  if (existing_paths.empty()) {
     if (channel_) {
       channel_->InvokeMethod(
           "onDragOutEnded",
@@ -315,21 +459,15 @@ void XueHuaNaviteDragDropPlugin::StartDragOutWithPaths(
     return;
   }
 
-  IDataObject* data_obj = nullptr;
-  // PCUIDLIST_RELATIVE_ARRAY / UNALIGNED PIDL: C-style cast keeps MSVC quiet under /WX.
-  auto* pidl_array = (LPCITEMIDLIST*)pidls.data();
-  HRESULT hr = SHCreateDataObject(
-      nullptr, static_cast<UINT>(pidls.size()), pidl_array, nullptr,
-      IID_PPV_ARGS(&data_obj));
-
-  for (auto* pidl : pidls) {
-    ILFree(pidl);
-  }
+  HGLOBAL hdrop = CreateHDropGlobal(existing_paths);
+  IDataObject* data_obj = hdrop ? new HDropDataObject(hdrop) : nullptr;
 
   bool drag_succeeded = false;
-  if (SUCCEEDED(hr) && data_obj) {
+  if (data_obj) {
     auto* drop_source = new SimpleDropSource();
     DWORD effect = DROPEFFECT_NONE;
+    // Desktop/Explorer accept COPY for CF_HDROP file drops. MOVE is also
+    // offered so targets that prefer move can request it.
     HRESULT drag_hr = DoDragDrop(
         data_obj, drop_source, DROPEFFECT_COPY | DROPEFFECT_MOVE, &effect);
     drag_succeeded = (drag_hr == DRAGDROP_S_DROP && effect != DROPEFFECT_NONE);
