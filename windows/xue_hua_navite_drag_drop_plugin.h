@@ -46,6 +46,7 @@ class XueHuaNaviteDragDropPlugin : public flutter::Plugin {
 
  private:
   void EnsureDropTargetRegistered();
+  void NotifyDragOutEnded(bool success);
   void StartDragOutWithPaths(const std::vector<std::wstring>& file_paths);
 
   flutter::PluginRegistrarWindows *registrar_ = nullptr;
