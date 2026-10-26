@@ -1,3 +1,9 @@
+## 1.0.6
+
+* Windows avoids hanging in `DoDragDrop` when no mouse button is pressed, returning false and ending the drag-out.
+* Windows `startDragOut` returns false when there are no valid paths, and skips invalid Mode A empty or missing paths.
+* The example adds flutter_driver coverage for empty and missing file cases, and uses system temp paths on Windows.
+
 ## 1.0.5
 
 * Linux drag-out stages async and memory items to a temp file so Mode B drag-out works.
