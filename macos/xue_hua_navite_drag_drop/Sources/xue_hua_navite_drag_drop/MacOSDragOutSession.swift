@@ -45,8 +45,14 @@ final class MacOSDragOutSession: NSObject, NSDraggingSource, NSFilePromiseProvid
       let isAsync = (item["isAsync"] as? Bool) ?? (filePath == nil || filePath!.isEmpty)
       let itemId = (item["id"] as? String) ?? "id_\(index)"
 
+      // Mode A: only accept non-empty paths that currently exist on disk.
+      // Missing/empty Mode A paths are skipped (mirrors Windows/Linux).
       let pasteboardWriter: NSPasteboardWriting
-      if !isAsync, let path = filePath, !path.isEmpty {
+      if !isAsync {
+        guard let path = filePath, !path.isEmpty,
+              FileManager.default.fileExists(atPath: path) else {
+          continue
+        }
         let fileURL = URL(fileURLWithPath: path)
         pasteboardWriter = fileURL as NSURL
       } else {
@@ -60,7 +66,7 @@ final class MacOSDragOutSession: NSObject, NSDraggingSource, NSFilePromiseProvid
       let dragItem = NSDraggingItem(pasteboardWriter: pasteboardWriter)
       let previewImage = Self.resolvePreviewImage(item: item, fileName: fileName, filePath: filePath)
       let imageSize = previewImage.size.width > 0 ? previewImage.size : NSSize(width: 64, height: 64)
-      let offset = CGFloat(index * 8)
+      let offset = CGFloat(draggingItems.count * 8)
       let dragFrame = NSRect(
         x: appKitPoint.x - imageSize.width / 2 + offset,
         y: appKitPoint.y - imageSize.height / 2 - offset,
@@ -69,6 +75,11 @@ final class MacOSDragOutSession: NSObject, NSDraggingSource, NSFilePromiseProvid
       )
       dragItem.setDraggingFrame(dragFrame, contents: previewImage)
       draggingItems.append(dragItem)
+    }
+
+    // Nothing valid to drag (e.g. only missing Mode A files).
+    guard !draggingItems.isEmpty else {
+      return false
     }
 
     let currentEvent = NSApp.currentEvent
