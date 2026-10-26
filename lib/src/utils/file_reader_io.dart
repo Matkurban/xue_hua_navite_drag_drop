@@ -35,3 +35,10 @@ Future<void> writeBytesToTargetFile(String targetPath, Uint8List bytes) async {
   await file.parent.create(recursive: true);
   await file.writeAsBytes(bytes, flush: true);
 }
+
+
+Future<String> createTempFilePathForDragOut(String fileName) async {
+  final safeName = fileName.replaceAll(RegExp(r'[\\/]+'), '_');
+  final dir = await Directory.systemTemp.createTemp('xue_hua_drag_out_');
+  return '${dir.path}/$safeName';
+}

@@ -42,3 +42,9 @@ Stream<Uint8List> openPlatformFileRead(
 Future<void> writeBytesToTargetFile(String targetPath, Uint8List bytes) async {
   // On Web, file saving is handled via Blob URL / DownloadURL in XueHuaNaviteDragDropWeb.
 }
+
+
+Future<String> createTempFilePathForDragOut(String fileName) async {
+  // Web drag-out uses in-memory Blob / DownloadURL instead of temp files.
+  return fileName;
+}

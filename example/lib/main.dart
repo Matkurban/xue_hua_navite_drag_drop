@@ -4,6 +4,8 @@ import 'dart:typed_data';
 import 'package:material_ui/material_ui.dart';
 import 'package:xue_hua_navite_drag_drop/xue_hua_navite_drag_drop.dart';
 
+import 'driver_bridge.dart';
+
 void main() {
   runApp(const MyApp());
 }
@@ -16,10 +18,43 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
+  final GlobalKey _dropRegionKey = GlobalKey();
   bool _isHoveringDropZone = false;
   Offset? _hoverPosition;
   final List<DropItem> _droppedItems = <DropItem>[];
   String _dragOutStatus = '等待拖出操作...';
+
+  @override
+  void initState() {
+    super.initState();
+    DriverBridge.ui = DriverUiProbe(
+      isHoveringGetter: () => _isHoveringDropZone,
+      hoverPositionGetter: () => _hoverPosition,
+      droppedCountGetter: () => _droppedItems.length,
+      dragOutStatusGetter: () => _dragOutStatus,
+      firstDroppedNameGetter: () => _droppedItems
+          .where((e) => !e.isDirectory && e.path != null)
+          .map((e) => e.name)
+          .firstOrNull,
+      firstDroppedPathGetter: () => _droppedItems
+          .where((e) => !e.isDirectory && e.path != null)
+          .map((e) => e.path)
+          .firstOrNull,
+      dropCenterGetter: () {
+        final ctx = _dropRegionKey.currentContext;
+        if (ctx == null) return null;
+        final box = ctx.findRenderObject();
+        if (box is! RenderBox || !box.hasSize) return null;
+        return box.localToGlobal(box.size.center(Offset.zero));
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    DriverBridge.ui = null;
+    super.dispose();
+  }
 
   String _formatBytes(int bytes) {
     if (bytes < 1024) return '$bytes B';
@@ -37,7 +72,7 @@ class _MyAppState extends State<MyApp> {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(colorSchemeSeed: Colors.indigo, useMaterial3: true),
       home: Scaffold(
-        appBar: AppBar(title: const Text('XueHua 6端原生拖拽演示')),
+        appBar: AppBar(title: const Text('XueHua 6端原生拖拽演示', key: ValueKey('app_title'))),
         body: Padding(
           padding: const EdgeInsets.all(16),
           child: Row(
@@ -47,6 +82,8 @@ class _MyAppState extends State<MyApp> {
               Expanded(
                 flex: 3,
                 child: NativeDropRegion(
+                  key: _dropRegionKey,
+                  // ValueKey for flutter_driver finders (GlobalKey above for geometry).
                   onDragEnter: (event) {
                     setState(() {
                       _isHoveringDropZone = true;
@@ -74,6 +111,7 @@ class _MyAppState extends State<MyApp> {
                     });
                   },
                   child: AnimatedContainer(
+                    key: const ValueKey('drop_region'),
                     duration: const Duration(milliseconds: 150),
                     decoration: BoxDecoration(
                       color: _isHoveringDropZone
@@ -125,6 +163,7 @@ class _MyAppState extends State<MyApp> {
                               ? const Center(
                                   child: Text(
                                     '请从电脑桌面/资源管理器拖拽任意文件、视频或文件夹到此区域',
+                                    key: ValueKey('drop_placeholder'),
                                     textAlign: TextAlign.center,
                                     style: TextStyle(
                                       color: Colors.black54,
@@ -133,6 +172,7 @@ class _MyAppState extends State<MyApp> {
                                   ),
                                 )
                               : ListView.separated(
+                                  key: const ValueKey('dropped_list'),
                                   itemCount: _droppedItems.length,
                                   separatorBuilder: (_, _) =>
                                       const Divider(height: 1),
@@ -187,6 +227,7 @@ class _MyAppState extends State<MyApp> {
                       const SizedBox(height: 8),
                       Text(
                         '状态: $_dragOutStatus',
+                        key: const ValueKey('drag_out_status'),
                         style: const TextStyle(
                           fontSize: 13,
                           color: Colors.blueGrey,
@@ -195,6 +236,7 @@ class _MyAppState extends State<MyApp> {
                       const SizedBox(height: 20),
                       // 模式 B：异步/内存按需生成文件拖出
                       NativeDraggable(
+                        key: const ValueKey('drag_out_memory'),
                         onDragStarted: () {
                           setState(() {
                             _dragOutStatus = '正在向外拖拽虚拟生成文件...';
@@ -242,6 +284,7 @@ class _MyAppState extends State<MyApp> {
                       const SizedBox(height: 8),
                       // 模式 A：已知本地文件路径直接拖出
                       NativeDraggable(
+                        key: const ValueKey('drag_out_local'),
                         enabled: firstDroppedFile != null,
                         onDragStarted: () {
                           setState(() {

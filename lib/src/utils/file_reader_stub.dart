@@ -22,3 +22,10 @@ Future<void> writeBytesToTargetFile(String targetPath, Uint8List bytes) {
     'Cannot write file without dart:io or web implementation.',
   );
 }
+
+
+Future<String> createTempFilePathForDragOut(String fileName) {
+  throw UnsupportedError(
+    'Cannot create temp drag-out path without dart:io.',
+  );
+}
