@@ -1,3 +1,8 @@
+## 1.0.7
+
+* macOS and iOS Mode A `startDragOut` skips empty or missing file paths and returns false when nothing valid remains, aligned with Windows and Linux.
+* The example sets version 1.0.0+1 so iOS builds have a build name and number.
+
 ## 1.0.6
 
 * Windows avoids hanging in `DoDragDrop` when no mouse button is pressed, returning false and ending the drag-out.
