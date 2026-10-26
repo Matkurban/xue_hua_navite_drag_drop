@@ -1,3 +1,10 @@
+## 1.0.5
+
+* Linux drag-out stages async and memory items to a temp file so Mode B drag-out works.
+* Linux reports drag-end success from the selected GDK action, so cancelled drags are false.
+* Linux `startDragOut` returns false when there are no valid URIs.
+* The example adds flutter_driver coverage for the drag-drop APIs.
+
 ## 1.0.4
 
 * Windows drag-out now offers CF_HDROP so Desktop/Explorer no longer show a no-drop cursor.
