@@ -83,8 +83,25 @@ public class XueHuaNaviteDragDropPlugin: NSObject, FlutterPlugin, UIDropInteract
       if let args = call.arguments as? [String: Any],
          let items = args["items"] as? [[String: Any]],
          !items.isEmpty {
-        pendingDragOutItems = items
-        result(true)
+        // Mode A: skip empty/missing paths (same contract as macOS/Windows/Linux).
+        var validItems: [[String: Any]] = []
+        for item in items {
+          let filePath = item["filePath"] as? String
+          let isAsync = (item["isAsync"] as? Bool) ?? (filePath == nil || (filePath?.isEmpty ?? true))
+          if !isAsync {
+            guard let path = filePath, !path.isEmpty,
+                  FileManager.default.fileExists(atPath: path) else {
+              continue
+            }
+          }
+          validItems.append(item)
+        }
+        if validItems.isEmpty {
+          result(false)
+        } else {
+          pendingDragOutItems = validItems
+          result(true)
+        }
       } else {
         result(false)
       }
