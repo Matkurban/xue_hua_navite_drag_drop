@@ -126,8 +126,11 @@ static void on_gtk_drag_data_get(GtkWidget* widget, GdkDragContext* context,
 
 static void on_gtk_drag_end(GtkWidget* widget, GdkDragContext* context, gpointer user_data) {
   XueHuaNaviteDragDropPlugin* self = XUE_HUA_NAVITE_DRAG_DROP_PLUGIN(user_data);
+  // Selected action is 0 when the user cancels the drag (e.g. Esc / drop outside).
+  const GdkDragAction selected = gdk_drag_context_get_selected_action(context);
+  const gboolean success = selected != static_cast<GdkDragAction>(0);
   g_autoptr(FlValue) payload = fl_value_new_map();
-  fl_value_set_string_take(payload, "success", fl_value_new_bool(TRUE));
+  fl_value_set_string_take(payload, "success", fl_value_new_bool(success));
   fl_method_channel_invoke_method(self->channel, "onDragOutEnded", payload, nullptr, nullptr, nullptr);
 }
 
@@ -229,10 +232,15 @@ void xue_hua_navite_drag_drop_plugin_handle_method_call(
       }
     }
     g_ptr_array_add(self->drag_out_uris, nullptr);
-    begin_gtk_drag_with_uris(self);
-
-    g_autoptr(FlValue) res = fl_value_new_bool(TRUE);
-    response = FL_METHOD_RESPONSE(fl_method_success_response_new(res));
+    // pdata is a NULL-terminated URI list; len includes the trailing NULL entry.
+    if (self->drag_out_uris->len <= 1) {
+      g_autoptr(FlValue) res = fl_value_new_bool(FALSE);
+      response = FL_METHOD_RESPONSE(fl_method_success_response_new(res));
+    } else {
+      begin_gtk_drag_with_uris(self);
+      g_autoptr(FlValue) res = fl_value_new_bool(TRUE);
+      response = FL_METHOD_RESPONSE(fl_method_success_response_new(res));
+    }
   } else {
     response = FL_METHOD_RESPONSE(fl_method_not_implemented_response_new());
   }

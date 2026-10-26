@@ -1,10 +1,13 @@
 import 'dart:async';
 import 'dart:ui';
 
+import 'package:flutter/foundation.dart';
+
 import '../../xue_hua_navite_drag_drop_platform_interface.dart';
 import '../models/drag_event.dart';
 import '../models/drag_out_item.dart';
 import '../models/drop_item.dart';
+import '../utils/file_reader.dart';
 
 /// Internal registration entry for a mounted `NativeDropRegion`.
 class DropRegionRegistration {
@@ -100,15 +103,22 @@ class DragDropManager {
     void Function(bool success)? onDragCompleted,
   }) async {
     await ensureInitialized();
+    final nativeItems = await _materializeItemsForNative(items);
     _activeAsyncDragItems.clear();
-    for (final item in items) {
+    for (final item in nativeItems) {
       if (item.isAsync) {
         _activeAsyncDragItems[item.id] = item;
       }
     }
+    // Keep original async writers available when native requests deferred write.
+    for (final item in items) {
+      if (item.isAsync) {
+        _activeAsyncDragItems.putIfAbsent(item.id, () => item);
+      }
+    }
     _activeDragOutCallback = onDragCompleted;
     final success = await XueHuaNaviteDragDropPlatform.instance.startDragOut(
-      items: items,
+      items: nativeItems,
       globalPosition: globalPosition,
     );
     if (!success && _activeDragOutCallback != null) {
@@ -117,6 +127,37 @@ class DragDropManager {
       cb!(false);
     }
     return success;
+  }
+
+  /// Linux GTK drag-and-drop only accepts real `file://` URIs. Materialize
+  /// async/memory items to temp files before handing them to the native side.
+  Future<List<DragOutItem>> _materializeItemsForNative(
+    List<DragOutItem> items,
+  ) async {
+    final needsStaging =
+        !kIsWeb && defaultTargetPlatform == TargetPlatform.linux;
+    if (!needsStaging) {
+      return items;
+    }
+
+    final prepared = <DragOutItem>[];
+    for (final item in items) {
+      if (!item.isAsync || item.onWriteFile == null) {
+        prepared.add(item);
+        continue;
+      }
+      final targetPath = await createTempFilePathForDragOut(item.fileName);
+      await item.onWriteFile!(targetPath);
+      prepared.add(
+        DragOutItem.file(
+          filePath: targetPath,
+          fileName: item.fileName,
+          mimeType: item.mimeType,
+          previewImage: item.previewImage,
+        ),
+      );
+    }
+    return prepared;
   }
 
   /// Handles native `onDragEntered` event.
