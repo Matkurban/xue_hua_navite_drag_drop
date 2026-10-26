@@ -437,6 +437,17 @@ class HDropDataObject : public IDataObject {
   HGLOBAL hdrop_;
 };
 
+void XueHuaNaviteDragDropPlugin::NotifyDragOutEnded(bool success) {
+  if (!channel_) {
+    return;
+  }
+  channel_->InvokeMethod(
+      "onDragOutEnded",
+      std::make_unique<flutter::EncodableValue>(flutter::EncodableMap{
+          {flutter::EncodableValue("success"), flutter::EncodableValue(success)},
+      }));
+}
+
 void XueHuaNaviteDragDropPlugin::StartDragOutWithPaths(
     const std::vector<std::wstring>& file_paths) {
   // Only existing filesystem paths can be offered via CF_HDROP.
@@ -449,13 +460,17 @@ void XueHuaNaviteDragDropPlugin::StartDragOutWithPaths(
     }
   }
   if (existing_paths.empty()) {
-    if (channel_) {
-      channel_->InvokeMethod(
-          "onDragOutEnded",
-          std::make_unique<flutter::EncodableValue>(flutter::EncodableMap{
-              {flutter::EncodableValue("success"), flutter::EncodableValue(false)},
-          }));
-    }
+    NotifyDragOutEnded(false);
+    return;
+  }
+
+  // OLE DoDragDrop can hang indefinitely when neither mouse button is down
+  // (common in flutter_driver / automated sessions). Bail out cleanly instead.
+  const bool button_down =
+      (GetAsyncKeyState(VK_LBUTTON) & 0x8000) != 0 ||
+      (GetAsyncKeyState(VK_RBUTTON) & 0x8000) != 0;
+  if (!button_down) {
+    NotifyDragOutEnded(false);
     return;
   }
 
@@ -475,14 +490,7 @@ void XueHuaNaviteDragDropPlugin::StartDragOutWithPaths(
     data_obj->Release();
   }
 
-  if (channel_) {
-    channel_->InvokeMethod(
-        "onDragOutEnded",
-        std::make_unique<flutter::EncodableValue>(flutter::EncodableMap{
-            {flutter::EncodableValue("success"),
-             flutter::EncodableValue(drag_succeeded)},
-        }));
-  }
+  NotifyDragOutEnded(drag_succeeded);
 }
 
 void XueHuaNaviteDragDropPlugin::HandleMethodCall(
@@ -561,66 +569,87 @@ void XueHuaNaviteDragDropPlugin::HandleMethodCall(
         }
       }
 
-      if (!is_async && !file_path_str.empty()) {
-        resolved_paths->push_back(Utf8ToWide(file_path_str));
-      } else if (channel_) {
-        std::string item_id;
-        std::string file_name = "exported_file";
-        auto id_it = item_map->find(flutter::EncodableValue("id"));
-        if (id_it != item_map->end()) {
-          if (const auto* s = std::get_if<std::string>(&id_it->second)) item_id = *s;
+      if (!is_async) {
+        // Mode A: only keep non-empty paths that currently exist on disk.
+        if (file_path_str.empty()) {
+          continue;
         }
-        auto name_it = item_map->find(flutter::EncodableValue("fileName"));
-        if (name_it != item_map->end()) {
-          if (const auto* s = std::get_if<std::string>(&name_it->second)) file_name = *s;
+        std::wstring wide_path = Utf8ToWide(file_path_str);
+        std::error_code exists_ec;
+        if (std::filesystem::exists(wide_path, exists_ec) && !exists_ec) {
+          resolved_paths->push_back(std::move(wide_path));
         }
-
-        std::filesystem::path target_file = temp_dir / Utf8ToWide(file_name);
-        std::wstring target_wide = target_file.wstring();
-        std::string target_utf8 = WideToUtf8(target_wide);
-
-        (*pending_async)++;
-        channel_->InvokeMethod(
-            "onRequestAsyncFileWrite",
-            std::make_unique<flutter::EncodableValue>(flutter::EncodableMap{
-                {flutter::EncodableValue("id"), flutter::EncodableValue(item_id)},
-                {flutter::EncodableValue("destinationPath"),
-                 flutter::EncodableValue(target_utf8)},
-            }),
-            std::make_unique<flutter::MethodResultFunctions<flutter::EncodableValue>>(
-                [this, resolved_paths, pending_async, target_wide](
-                    const flutter::EncodableValue* reply) {
-                  if (reply) {
-                    if (const auto* ok = std::get_if<bool>(reply); ok && *ok) {
-                      resolved_paths->push_back(target_wide);
-                    }
-                  }
-                  (*pending_async)--;
-                  if (*pending_async == 0) {
-                    StartDragOutWithPaths(*resolved_paths);
-                  }
-                },
-                [this, resolved_paths, pending_async](
-                    const std::string&, const std::string&,
-                    const flutter::EncodableValue*) {
-                  (*pending_async)--;
-                  if (*pending_async == 0) {
-                    StartDragOutWithPaths(*resolved_paths);
-                  }
-                },
-                [this, resolved_paths, pending_async]() {
-                  (*pending_async)--;
-                  if (*pending_async == 0) {
-                    StartDragOutWithPaths(*resolved_paths);
-                  }
-                }));
+        continue;
       }
+
+      if (!channel_) {
+        continue;
+      }
+
+      std::string item_id;
+      std::string file_name = "exported_file";
+      auto id_it = item_map->find(flutter::EncodableValue("id"));
+      if (id_it != item_map->end()) {
+        if (const auto* s = std::get_if<std::string>(&id_it->second)) item_id = *s;
+      }
+      auto name_it = item_map->find(flutter::EncodableValue("fileName"));
+      if (name_it != item_map->end()) {
+        if (const auto* s = std::get_if<std::string>(&name_it->second)) file_name = *s;
+      }
+
+      std::filesystem::path target_file = temp_dir / Utf8ToWide(file_name);
+      std::wstring target_wide = target_file.wstring();
+      std::string target_utf8 = WideToUtf8(target_wide);
+
+      (*pending_async)++;
+      channel_->InvokeMethod(
+          "onRequestAsyncFileWrite",
+          std::make_unique<flutter::EncodableValue>(flutter::EncodableMap{
+              {flutter::EncodableValue("id"), flutter::EncodableValue(item_id)},
+              {flutter::EncodableValue("destinationPath"),
+               flutter::EncodableValue(target_utf8)},
+          }),
+          std::make_unique<flutter::MethodResultFunctions<flutter::EncodableValue>>(
+              [this, resolved_paths, pending_async, target_wide](
+                  const flutter::EncodableValue* reply) {
+                if (reply) {
+                  if (const auto* ok = std::get_if<bool>(reply); ok && *ok) {
+                    resolved_paths->push_back(target_wide);
+                  }
+                }
+                (*pending_async)--;
+                if (*pending_async == 0) {
+                  StartDragOutWithPaths(*resolved_paths);
+                }
+              },
+              [this, resolved_paths, pending_async](
+                  const std::string&, const std::string&,
+                  const flutter::EncodableValue*) {
+                (*pending_async)--;
+                if (*pending_async == 0) {
+                  StartDragOutWithPaths(*resolved_paths);
+                }
+              },
+              [this, resolved_paths, pending_async]() {
+                (*pending_async)--;
+                if (*pending_async == 0) {
+                  StartDragOutWithPaths(*resolved_paths);
+                }
+              }));
+    }
+
+    // Mirror Linux: do not claim success when there is nothing valid to drag.
+    if (*pending_async == 0) {
+      if (resolved_paths->empty()) {
+        result->Success(flutter::EncodableValue(false));
+        return;
+      }
+      result->Success(flutter::EncodableValue(true));
+      StartDragOutWithPaths(*resolved_paths);
+      return;
     }
 
     result->Success(flutter::EncodableValue(true));
-    if (*pending_async == 0) {
-      StartDragOutWithPaths(*resolved_paths);
-    }
     return;
   }
 

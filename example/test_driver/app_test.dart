@@ -44,7 +44,7 @@ void main() {
       expect(status, contains('等待拖出操作'));
     });
 
-    test('initDragDrop succeeds on Linux', () async {
+    test('initDragDrop succeeds on desktop', () async {
       expect(await driver.requestData('initDragDrop'), 'ok');
       final platform = await driver.requestData('platformReady');
       expect(platform, isNotEmpty);
@@ -78,22 +78,39 @@ void main() {
       expect(state['firstDroppedName'], 'driver_sample.txt');
     });
 
-    test('startDragOut memory invokes native path and completion callback',
-        () async {
+    test('startDragOut memory invokes native path without hanging', () async {
       final result = await requestJson('startDragOutMemory');
-      // Native may return true even when async URIs are incomplete on Linux.
       expect(result.containsKey('started'), isTrue);
       expect(result['callbackSeen'], isTrue);
-      expect(result['success'], isTrue);
+      // Without a held mouse button, OLE drag-out cannot complete successfully.
+      // The important contract is: no hang, and completion callback fires.
+      expect(result['started'], isTrue);
     });
 
     test('startDragOut local file after simulated drop', () async {
       final result = await requestJson('startDragOutFile');
+      expect(result.containsKey('started'), isTrue);
+      // File exists after simulatePerformDrop; session starts, then ends cleanly
+      // without a pressed mouse button.
       expect(result['started'], isTrue);
+      expect(result['callbackSeen'], isTrue);
+    });
+
+    test('startDragOut empty items fails cleanly', () async {
+      final result = await requestJson('startDragOutEmpty');
+      expect(result['started'], isFalse);
+      expect(result['callbackSeen'], isTrue);
+      expect(result['success'], isFalse);
+    });
+
+    test('startDragOut missing file fails cleanly', () async {
+      final result = await requestJson('startDragOutMissingFile');
+      expect(result['started'], isFalse);
+      expect(result['callbackSeen'], isTrue);
+      expect(result['success'], isFalse);
     });
 
     test('cancelDragOut reports cancellation path', () async {
-      // Re-init a drag-out callback path via memory start then cancel.
       await requestJson('startDragOutMemory');
       final cancelled = await requestJson('cancelDragOut');
       expect(cancelled.containsKey('status'), isTrue);
