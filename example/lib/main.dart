@@ -214,9 +214,10 @@ class _MyAppState extends State<MyApp> {
                     border: Border.all(color: Colors.blueGrey.shade200),
                   ),
                   padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: <Widget>[
+                  child: SingleChildScrollView(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: <Widget>[
                       const Text(
                         '2. 内部拖出到电脑（双模式）',
                         style: TextStyle(
@@ -337,6 +338,7 @@ class _MyAppState extends State<MyApp> {
                         ),
                       ),
                     ],
+                    ),
                   ),
                 ),
               ),
