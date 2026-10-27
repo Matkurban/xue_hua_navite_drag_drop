@@ -25,6 +25,8 @@ class DriverBridge {
         return XueHuaNaviteDragDropPlatform.instance.runtimeType.toString();
       case 'startDragOutMemory':
         return await _startDragOutMemory();
+      case 'startDragOutAsync':
+        return await _startDragOutAsync();
       case 'startDragOutFile':
         return await _startDragOutFile();
       case 'startDragOutEmpty':
@@ -108,6 +110,35 @@ class DriverBridge {
     });
   }
 
+
+  static Future<String> _startDragOutAsync() async {
+    final plugin = XueHuaNaviteDragDrop();
+    var completed = false;
+    var success = false;
+    return _waitForDragOutResult(
+      start: () => plugin.startDragOut(
+        items: <DragOutItem>[
+          DragOutItem.asyncFile(
+            fileName: 'driver_async.txt',
+            mimeType: 'text/plain',
+            onWriteFile: (String targetPath) async {
+              final file = File(targetPath);
+              await file.parent.create(recursive: true);
+              await file.writeAsString('driver-async-export', flush: true);
+            },
+          ),
+        ],
+        globalPosition: const Offset(400, 300),
+        onDragCompleted: (ok) {
+          completed = true;
+          success = ok;
+        },
+      ),
+      completedGetter: () => completed,
+      successGetter: () => success,
+    );
+  }
+
   static Future<String> _startDragOutMemory() async {
     final plugin = XueHuaNaviteDragDrop();
     var completed = false;
@@ -141,10 +172,12 @@ class DriverBridge {
         'error': 'no_dropped_file',
       });
     }
+    final file = File(firstPath);
+    final exists = await file.exists();
     final plugin = XueHuaNaviteDragDrop();
     var completed = false;
     var success = false;
-    return _waitForDragOutResult(
+    final encoded = await _waitForDragOutResult(
       start: () => plugin.startDragOut(
         items: <DragOutItem>[
           DragOutItem.file(filePath: firstPath),
@@ -158,6 +191,11 @@ class DriverBridge {
       completedGetter: () => completed,
       successGetter: () => success,
     );
+    final map = jsonDecode(encoded) as Map<String, dynamic>;
+    map['path'] = firstPath;
+    map['fileExists'] = exists;
+    map['fileLength'] = exists ? await file.length() : -1;
+    return jsonEncode(map);
   }
 
   static Future<String> _startDragOutEmpty() async {

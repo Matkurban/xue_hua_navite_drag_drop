@@ -1,3 +1,10 @@
+## 1.0.8
+
+* Android Mode A `startDragOut` skips empty or missing file paths and returns false when nothing valid remains, aligned with other platforms.
+* Android Mode B (`asyncFile` / `memory`) waits for async materialization before returning `startDragOut`, instead of always returning true early.
+* Android reports drag-out completion from `ACTION_DRAG_ENDED`; when the OS refuses to start a drag without an active pointer (e.g. flutter_driver), the session is accepted then completed as unsuccessful, matching desktop driver contracts.
+* Example flutter_driver coverage adds Mode B `asyncFile`.
+
 ## 1.0.7
 
 * macOS and iOS Mode A `startDragOut` skips empty or missing file paths and returns false when nothing valid remains, aligned with Windows and Linux.

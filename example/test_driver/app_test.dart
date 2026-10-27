@@ -87,6 +87,13 @@ void main() {
       expect(result['started'], isTrue);
     });
 
+    test('startDragOut asyncFile Mode B invokes native path without hanging', () async {
+      final result = await requestJson('startDragOutAsync');
+      expect(result.containsKey('started'), isTrue);
+      expect(result['callbackSeen'], isTrue);
+      expect(result['started'], isTrue);
+    });
+
     test('startDragOut local file after simulated drop', () async {
       final result = await requestJson('startDragOutFile');
       expect(result.containsKey('started'), isTrue);

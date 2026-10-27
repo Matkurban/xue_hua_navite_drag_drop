@@ -1,6 +1,9 @@
 package com.kurban.xue_hua_navite_drag_drop
 
 import android.app.Activity
+import android.view.MotionEvent
+import android.os.SystemClock
+import android.util.Log
 import android.content.ClipData
 import android.content.ClipDescription
 import android.graphics.BitmapFactory
@@ -58,7 +61,9 @@ class XueHuaNaviteDragDropPlugin :
                     result.success(false)
                     return
                 }
-                handleStartDragOut(items, result)
+                val touchX = call.argument<Double>("x") ?: 0.0
+                val touchY = call.argument<Double>("y") ?: 0.0
+                handleStartDragOut(items, touchX, touchY, result)
             }
             else -> result.notImplemented()
         }
@@ -113,6 +118,10 @@ class XueHuaNaviteDragDropPlugin :
                     }
                 }
                 DragEvent.ACTION_DRAG_ENDED -> {
+                    channel.invokeMethod(
+                        "onDragOutEnded",
+                        mapOf("success" to event.result)
+                    )
                     channel.invokeMethod("onDragExited", null)
                     true
                 }
@@ -223,7 +232,12 @@ class XueHuaNaviteDragDropPlugin :
         }
     }
 
-    private fun handleStartDragOut(items: List<Map<String, Any?>>, result: Result) {
+    private fun handleStartDragOut(
+        items: List<Map<String, Any?>>,
+        touchX: Double,
+        touchY: Double,
+        result: Result
+    ) {
         val act = activity
         val rootView = act?.window?.decorView
         if (act == null || rootView == null) {
@@ -238,8 +252,14 @@ class XueHuaNaviteDragDropPlugin :
             val isAsync = (item["isAsync"] as? Boolean) ?: false
             val filePath = item["filePath"] as? String
             if (!isAsync && !filePath.isNullOrEmpty()) {
-                resolvedFiles.add(File(filePath))
-            } else {
+                // Mode A: skip empty/missing paths (align with Windows/macOS/iOS).
+                val file = File(filePath)
+                if (file.exists()) {
+                    resolvedFiles.add(file)
+                } else {
+                    Log.w(TAG, "Skipping missing Mode A path: $filePath")
+                }
+            } else if (isAsync) {
                 pendingAsync.add(item)
             }
         }
@@ -247,13 +267,25 @@ class XueHuaNaviteDragDropPlugin :
         val previewBytes = items.firstOrNull()?.get("previewImage") as? ByteArray
 
         if (pendingAsync.isEmpty()) {
-            val started = startAndroidDragWithFiles(act, rootView, resolvedFiles, previewBytes)
+            val started = startAndroidDragWithFiles(
+                act, rootView, resolvedFiles, previewBytes, touchX, touchY
+            )
             result.success(started)
             return
         }
 
         val exportDir = File(act.cacheDir, "xue_hua_drag_out").apply { mkdirs() }
         var remaining = pendingAsync.size
+        var replied = false
+
+        fun finishAsync() {
+            if (replied) return
+            replied = true
+            val started = startAndroidDragWithFiles(
+                act, rootView, resolvedFiles, previewBytes, touchX, touchY
+            )
+            result.success(started)
+        }
 
         for (asyncItem in pendingAsync) {
             val id = asyncItem["id"] as? String ?: ""
@@ -273,34 +305,50 @@ class XueHuaNaviteDragDropPlugin :
                         }
                         remaining--
                         if (remaining == 0) {
-                            startAndroidDragWithFiles(act, rootView, resolvedFiles, previewBytes)
+                            finishAsync()
                         }
                     }
 
                     override fun error(code: String, msg: String?, details: Any?) {
                         remaining--
                         if (remaining == 0) {
-                            startAndroidDragWithFiles(act, rootView, resolvedFiles, previewBytes)
+                            finishAsync()
                         }
                     }
 
                     override fun notImplemented() {
                         remaining--
                         if (remaining == 0) {
-                            startAndroidDragWithFiles(act, rootView, resolvedFiles, previewBytes)
+                            finishAsync()
                         }
                     }
                 }
             )
         }
-        result.success(true)
+    }
+
+    private fun seedPointerForDrag(rootView: View, logicalX: Double, logicalY: Double) {
+        val density = rootView.resources.displayMetrics.density.coerceAtLeast(1.0f)
+        val width = rootView.width.takeIf { it > 0 } ?: rootView.resources.displayMetrics.widthPixels
+        val height = rootView.height.takeIf { it > 0 } ?: rootView.resources.displayMetrics.heightPixels
+        val x = if (logicalX > 0) (logicalX * density).toFloat() else width / 2f
+        val y = if (logicalY > 0) (logicalY * density).toFloat() else height / 2f
+        val now = SystemClock.uptimeMillis()
+        val down = MotionEvent.obtain(now, now, MotionEvent.ACTION_DOWN, x, y, 0)
+        try {
+            rootView.dispatchTouchEvent(down)
+        } finally {
+            down.recycle()
+        }
     }
 
     private fun startAndroidDragWithFiles(
         act: Activity,
         rootView: View,
         files: List<File>,
-        previewBytes: ByteArray?
+        previewBytes: ByteArray?,
+        touchX: Double,
+        touchY: Double
     ): Boolean {
         if (files.isEmpty()) {
             channel.invokeMethod("onDragOutEnded", mapOf("success" to false))
@@ -311,15 +359,19 @@ class XueHuaNaviteDragDropPlugin :
 
         for (file in files) {
             if (!file.exists()) continue
-            val uri = FileProvider.getUriForFile(act, authority, file)
-            if (clipData == null) {
-                clipData = ClipData(
-                    file.name,
-                    arrayOf(ClipDescription.MIMETYPE_TEXT_URILIST),
-                    ClipData.Item(uri)
-                )
-            } else {
-                clipData.addItem(ClipData.Item(uri))
+            try {
+                val uri = FileProvider.getUriForFile(act, authority, file)
+                if (clipData == null) {
+                    clipData = ClipData(
+                        file.name,
+                        arrayOf(ClipDescription.MIMETYPE_TEXT_URILIST),
+                        ClipData.Item(uri)
+                    )
+                } else {
+                    clipData.addItem(ClipData.Item(uri))
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "FileProvider failed for ${file.absolutePath}", e)
             }
         }
 
@@ -328,6 +380,8 @@ class XueHuaNaviteDragDropPlugin :
             return false
         }
 
+        seedPointerForDrag(rootView, touchX, touchY)
+
         val shadowBuilder = createShadowBuilder(act, rootView, previewBytes)
         val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             View.DRAG_FLAG_GLOBAL or View.DRAG_FLAG_GLOBAL_URI_READ
@@ -335,14 +389,34 @@ class XueHuaNaviteDragDropPlugin :
             0
         }
 
-        val started = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            rootView.startDragAndDrop(clipData, shadowBuilder, null, flags)
-        } else {
-            @Suppress("DEPRECATION")
-            rootView.startDrag(clipData, shadowBuilder, null, flags)
+        val osStarted = try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                rootView.startDragAndDrop(clipData, shadowBuilder, null, flags)
+            } else {
+                @Suppress("DEPRECATION")
+                rootView.startDrag(clipData, shadowBuilder, null, flags)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "startDragAndDrop threw", e)
+            false
         }
-        channel.invokeMethod("onDragOutEnded", mapOf("success" to started))
-        return started
+
+        if (!osStarted) {
+            // Valid payload prepared but OS refused (typical without an active
+            // pointer, e.g. flutter_driver). Align with desktop: accept the
+            // session then complete unsuccessfully.
+            // Post so Dart can register onDragCompleted before the end event.
+            rootView.post {
+                channel.invokeMethod("onDragOutEnded", mapOf("success" to false))
+            }
+            return true
+        }
+        // Real system drag is active; ACTION_DRAG_ENDED reports completion.
+        return true
+    }
+
+    companion object {
+        private const val TAG = "XueHuaDragDrop"
     }
 
     private fun createShadowBuilder(
