@@ -1,3 +1,8 @@
+## 1.0.9
+
+* Example adds `integration_test` coverage (`plugin_integration_test`, `example_ui_driver_test`) and `test_driver/integration_test.dart`.
+* Example right panel is wrapped in `SingleChildScrollView` to avoid RenderFlex overflow on smaller iPhone simulators.
+
 ## 1.0.8
 
 * Android Mode A `startDragOut` skips empty or missing file paths and returns false when nothing valid remains, aligned with other platforms.
